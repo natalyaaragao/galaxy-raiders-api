@@ -23,6 +23,9 @@ object SpaceFieldConfig {
   val asteroidMinMass = config.get<Int>("ASTEROID_MIN_MASS")
   val asteroidMaxMass = config.get<Int>("ASTEROID_MAX_MASS")
   val asteroidMassMultiplier = config.get<Double>("ASTEROID_MASS_MULTIPLIER")
+
+  val explosionRadius = config.get<Double>("EXPLOSION_RADIUS")
+  val explosionMass = config.get<Double>("EXPLOSION_MASS")
 }
 
 @Suppress("TooManyFunctions")
@@ -37,9 +40,18 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
 
   var asteroids: List<Asteroid> = emptyList()
     private set
+  
+  var explosions: List<Explosion> = emptyList()
+    private set
+
+  var totalScore: Double = 0.0
+    private set
+
+  var totalAsteroids: Int = 0
+    private set
 
   val spaceObjects: List<SpaceObject>
-    get() = listOf(this.ship) + this.missiles + this.asteroids
+    get() = listOf(this.ship) + this.missiles + this.asteroids + this.explosions
 
   fun moveShip() {
     this.ship.move(boundaryX, boundaryY)
@@ -70,6 +82,41 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
   fun trimAsteroids() {
     this.asteroids = this.asteroids.filter {
       it.inBoundaries(this.boundaryX, this.boundaryY)
+    }
+  }
+
+  fun trimExplosions() {
+    this.explosions = this.explosions.filter {
+      it.is_triggered
+    }
+  }
+
+  fun checkExplosion(firstObject: SpaceObject, secondObject: SpaceObject) {
+    if(firstObject.type == "Asteroid" && secondObject.type == "Missile") {
+      this.explosions += createExplosion(secondObject.center, firstObject.radius, firstObject.mass)
+      removeObject(firstObject)
+      updateTotalAsteroid()
+    }
+    if(firstObject.type == "Missile" && secondObject.type == "Asteroid") {
+      this.explosions += createExplosion(firstObject.center, secondObject.radius, secondObject.mass)
+      removeObject(secondObject)
+      updateTotalAsteroid()
+    }
+  }
+
+  fun updateTotalAsteroid() {
+    totalAsteroids += 1
+  }
+
+  fun calculateTotalScore() {
+      totalScore = this.explosions.sumOf {
+        it.score_from_explosion
+      }
+  }
+
+  private fun removeObject(so: SpaceObject) {
+    this.asteroids = this.asteroids.filter {
+      it != so
     }
   }
 
@@ -153,4 +200,14 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
 
     return scaledMass * SpaceFieldConfig.asteroidMassMultiplier
   }
+
+  private fun createExplosion(explosionPosition: Point2D, radiusExplosion: Double, massExplosion: Double): Explosion {
+    return Explosion(
+      initialPosition = explosionPosition,
+      initialVelocity = Vector2D(dx = 1.0, dy = 1.0),
+      radius = radiusExplosion,
+      mass = massExplosion,
+    )
+  }
+
 }
