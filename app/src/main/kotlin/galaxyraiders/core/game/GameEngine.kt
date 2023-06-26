@@ -82,7 +82,6 @@ class GameEngine(
 
   fun updateSpaceObjects() {
     if (!this.playing) {
-      updateScoreboard()
       return
     } 
     this.handleCollisions()
