@@ -6,6 +6,8 @@ import galaxyraiders.ports.ui.Controller
 import galaxyraiders.ports.ui.Controller.PlayerCommand
 import galaxyraiders.ports.ui.Visualizer
 import kotlin.system.measureTimeMillis
+import java.time.LocalDateTime
+import java.io.*
 
 const val MILLISECONDS_PER_SECOND: Int = 1000
 
@@ -34,15 +36,17 @@ class GameEngine(
   )
 
   var playing = true
+  var date_time = LocalDateTime.now()
 
-  fun execute() {
+  fun execute() {  
+    
     while (true) {
       val duration = measureTimeMillis { this.tick() }
-
       Thread.sleep(
         maxOf(0, GameEngineConfig.msPerFrame - duration)
       )
     }
+    
   }
 
   fun execute(maxIterations: Int) {
@@ -77,7 +81,10 @@ class GameEngine(
   }
 
   fun updateSpaceObjects() {
-    if (!this.playing) return
+    if (!this.playing) {
+      updateScoreboard()
+      return
+    } 
     this.handleCollisions()
     this.moveSpaceObjects()
     this.trimSpaceObjects()
@@ -86,9 +93,10 @@ class GameEngine(
 
   fun handleCollisions() {
     this.field.spaceObjects.forEachPair {
-        (first, second) ->
+        (first, second) -> 
       if (first.impacts(second)) {
-        first.collideWith(second, GameEngineConfig.coefficientRestitution)
+        this.field.checkExplosion(first, second);
+        first.collideWith(second, GameEngineConfig.coefficientRestitution)  
       }
     }
   }
@@ -102,6 +110,7 @@ class GameEngine(
   fun trimSpaceObjects() {
     this.field.trimAsteroids()
     this.field.trimMissiles()
+    this.field.trimExplosions()
   }
 
   fun generateAsteroids() {
@@ -115,6 +124,7 @@ class GameEngine(
   fun renderSpaceField() {
     this.visualizer.renderSpaceField(this.field)
   }
+
 }
 
 fun <T> List<T>.forEachPair(action: (Pair<T, T>) -> Unit) {
